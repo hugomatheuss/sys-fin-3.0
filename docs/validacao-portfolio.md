@@ -61,3 +61,29 @@ docker compose -f compose.yaml run --rm --no-deps --volume sysfinan-portfolio_ve
 Os testes adicionais exercitam as ações de download para contas e lançamentos com dois usuários, incluindo seleção adulterada com ID de outro usuário. Verificam que somente o registro selecionado do usuário atual é enviado ao template e que os valores ou fornecedores não selecionados ficam fora do HTML. Há ainda geração real de PDF para o template de lançamentos, com verificação de tipos legíveis e assinatura PDF.
 
 O bloqueio de conteúdo do PDF de lançamentos registrado na etapa 1 está corrigido. A revisão visual dos documentos, a formatação monetária e a validação completa do XLSX seguem pendentes. Esta etapa não altera migrations, códigos de status ou as regras de pagamento. Nenhum arquivo gerado do Filament foi incluído.
+
+
+## Etapa 3 — valores monetários e reversão de pagamentos
+
+Os testes de regressão reproduziram quatro falhas antes da correção: filtro sem encontrar o valor informado, reversão gravando `0` em vez de `2`, repetição do estado pago alterando a data e perda de centavos no total de valores altos.
+
+Correções:
+
+- O filtro passa a usar entrada textual decimal, normalização por strings e comparação das representações legadas equivalentes (`12`, `12.0` e `12.00`). Não há multiplicação por dez, arredondamento ou conversão para float. Campo vazio mantém a consulta; entrada inválida não retorna contas.
+- O toggle persiste status e data na mesma atualização: `1` para pago e `2` para pendente. Desmarcar limpa a data; marcar usa o relógio Laravel; repetir pago mantém a data original. A consulta do recurso continua impedindo alterações em contas de outro usuário.
+- O total dos lançamentos usa `bcsub` com duas casas e formatação BRL por strings, preservando os centavos mesmo acima da precisão de float. BCMath já está presente na imagem PHP utilizada pelo projeto.
+
+Validação:
+
+```bash
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test app/Filament/Resources/ContaResource.php app/Filament/Resources/LancamentoResource.php app/Support/ValorMonetario.php tests/Feature/FinanceiroTest.php tests/Unit/ValorMonetarioTest.php
+```
+
+- PHPUnit: **23 testes, 202 asserções; passou**.
+- Pint: **passou nos cinco arquivos PHP desta etapa**.
+- `git diff --check`: **passou**.
+- Os novos casos cobrem BRL, ponto decimal, milhares, zero, centavos, strings sem zeros finais, entrada inválida/vazia, saldo negativo, valores altos, os dois sentidos do toggle, repetição do pagamento e tentativa de alterar conta de outro usuário.
+- Não houve alteração em Blade, CSS ou JavaScript nesta etapa; o build não foi repetido.
+
+Não há migration nem correção automática de dados históricos. Registros que eventualmente já tenham status `0`, formatos monetários não suportados ou precisão superior a centavos exigem uma avaliação específica. Os campos monetários de cadastro/edição e a apresentação de outras colunas ainda usam os componentes existentes; esta etapa corrige especificamente o filtro, o total e o toggle. Os demais caminhos de edição e a validação completa dos XLSX continuam pendentes.

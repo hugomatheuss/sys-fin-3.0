@@ -6,6 +6,7 @@ use App\Filament\Exports\ContasNaoPagasExporter;
 use App\Filament\Exports\ContasPagasExporter;
 use App\Filament\Resources\ContaResource\Pages;
 use App\Models\Conta;
+use App\Support\ValorMonetario;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms\Components\DatePicker;
@@ -106,11 +107,18 @@ class ContaResource extends Resource
                     ->searchable()
                     ->visibleFrom('md'),
                 ToggleColumn::make('status')
-                    ->beforeStateUpdated(fn (Conta $conta) => $conta->status !== self::PAGO
-                        ? $conta->update(['dataPagamento' => date('Y-m-d')])
-                        : $conta->update(['dataPagamento' => null])
-                    )
-                    ->getStateUsing(fn (Conta $conta): string => $conta->status === self::OPERACIONAL)
+                    ->updateStateUsing(function (Conta $record, bool $state): bool {
+                        $dataPagamento = $state
+                            ? ($record->status === self::PAGO && $record->dataPagamento ? $record->dataPagamento : now()->toDateString())
+                            : null;
+                        $record->update([
+                            'status' => $state ? self::PAGO : self::NAO_PAGO,
+                            'dataPagamento' => $dataPagamento,
+                        ]);
+
+                        return $state;
+                    })
+                    ->getStateUsing(fn (Conta $conta): bool => $conta->status === self::PAGO)
                     ->onColor('success')
                     ->offColor('danger')
                     ->label('Status'),
@@ -136,21 +144,32 @@ class ContaResource extends Resource
                     }),
                 Filter::make('Valor')
                     ->form([
-                        Money::make('valor')->label('Valor'),
+                        TextInput::make('valor')->label('Valor')->prefix('R$')->inputMode('decimal')->placeholder('0,00'),
                     ])
                     ->query(function (Builder $query, $data): Builder {
-                        $valorFloat = (float) str_replace(',', '.', $data['valor']);
+                        $entrada = trim((string) ($data['valor'] ?? ''));
 
-                        return $query
-                            ->when(
-                                $valorFloat > 0,
-                                fn (Builder $query, $valor): Builder => $query
-                                    ->where(
-                                        'valor',
-                                        '=',
-                                        number_format($valorFloat * 10, 2, '.', '')
-                                    )
-                            );
+                        if ($entrada === '') {
+                            return $query;
+                        }
+
+                        $valor = ValorMonetario::normalizar($entrada);
+
+                        if ($valor === null) {
+                            return $query->whereRaw('1 = 0');
+                        }
+
+                        $valores = [$valor];
+
+                        if (str_ends_with($valor, '0')) {
+                            $valores[] = substr($valor, 0, -1);
+                        }
+
+                        if (str_ends_with($valor, '.00')) {
+                            $valores[] = substr($valor, 0, -3);
+                        }
+
+                        return $query->whereIn('valor', $valores);
                     }),
                 Filter::make('Contas Pagas')
                     ->query(fn (Builder $query): Builder => $query->where('status', self::PAGO)),

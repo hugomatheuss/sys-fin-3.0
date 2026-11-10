@@ -90,8 +90,8 @@ A configuração de testes força SQLite em memória, ambiente de testes e chave
 ## Limitações para a próxima etapa
 
 - O bloqueio de conteúdo do PDF de lançamentos foi corrigido: as ações agora usam `loadView` e recebem somente os registros selecionados do usuário autenticado. A apresentação visual dos PDFs e a formatação monetária ainda precisam de revisão; esta correção preserva as strings monetárias existentes, sem converter para float.
-- O teste de pagamento passou para a transição de pendente para pago; a reversão para pendente e os demais caminhos de edição precisam de cobertura adicional.
-- O filtro por valor usa float e multiplicação por dez; o total de lançamentos faz subtração implícita de strings monetárias.
+- O toggle foi validado nos dois sentidos: pago `1` com data e pendente `2` sem data. Repetir o estado pago preserva a data anterior. Os demais caminhos de edição ainda precisam de cobertura adicional.
+- O filtro por valor aceita vírgula decimal e ponto de milhar (por exemplo, `1.234,56`), além de decimal com ponto (`1234.56`), sem float. Entrada vazia não filtra; entrada inválida não retorna contas. Strings legadas sem zeros finais são aceitas na consulta. O total usa BCMath e formatação BRL exata; BCMath já está habilitada na imagem PHP do projeto. Os componentes monetários de cadastro/edição ainda usam conversões próprias para float e precisam de revisão separada.
 - O acesso exige e-mail Gmail. Os formulários não declaram várias validações exigidas pelo banco.
 - `Model::unguard()` global e `user_id` oculto exigem revisão de autorização e mass assignment. A criação atribui o usuário no servidor; edição e ações precisam de testes adicionais de adulteração.
 - Exportadores recebem consultas filtradas da tabela; a fila e a autorização do download ainda precisam de validação completa.

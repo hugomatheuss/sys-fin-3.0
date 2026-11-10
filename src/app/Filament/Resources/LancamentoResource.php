@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Exports\LancamentoExporter;
 use App\Filament\Resources\LancamentoResource\Pages;
 use App\Models\Lancamento;
+use App\Support\ValorMonetario;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms\Components\DatePicker;
@@ -106,8 +107,8 @@ class LancamentoResource extends Resource
                     ->sortable()
                     ->date('d-m-Y'),
                 TextColumn::make('Total')
-                    ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->recebimento - $lancamento->pagamento)
-                    ->money('BRL', 0, 'pt_BR')
+                    ->getStateUsing(fn (Lancamento $lancamento): string => bcsub($lancamento->recebimento, $lancamento->pagamento, 2))
+                    ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
                     ->sortable(),
             ])
             ->filters([

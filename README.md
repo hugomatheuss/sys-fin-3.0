@@ -35,6 +35,6 @@ O `compose.yaml` existente continua sendo a configuração de desenvolvimento ge
 
 ## Situação desta etapa
 
-Esta entrega documenta o projeto e prepara sua demonstração. Não inclui mudanças de esquema ou das regras financeiras. A página inicial ainda é a página padrão do Laravel; o painel está em `/admin`.
+Esta evolução documenta o projeto, prepara sua demonstração e corrige os PDFs, o filtro monetário, o total dos lançamentos e as transições de pagamento. Não inclui mudanças de esquema. A página inicial ainda é a página padrão do Laravel; o painel está em `/admin`.
 
 O uso real comprova que houve uma entrega para um cliente. Ganhos de tempo, redução de erros e retorno financeiro não foram medidos e não são alegados neste case. Não há publicação ou deploy automático configurado nesta entrega.
