@@ -7,20 +7,19 @@ use App\Filament\Resources\LancamentoResource\Pages;
 use App\Models\Lancamento;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Exports\Enums\ExportFormat;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
 use Filament\Tables\Actions\ExportAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Blade;
 use Leandrocfe\FilamentPtbrFormFields\Money;
-use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Hidden;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
 
 class LancamentoResource extends Resource
 {
@@ -49,16 +48,16 @@ class LancamentoResource extends Resource
                 Radio::make('tipoRecebimento')->label('Tipo de Recebimento')
                     ->options([
                         '1' => 'Dinheiro',
-                        '0' => 'Bancário'
-                ]),
+                        '0' => 'Bancário',
+                    ]),
                 Radio::make('tipoPagamento')->label('Tipo de Pagamento')
                     ->options([
                         '1' => 'Mercadorias',
-                        '0' => 'Outros'
-                ]),
+                        '0' => 'Outros',
+                    ]),
                 DatePicker::make('dataLancamento')->label('Data de Lançamento'),
                 //FileUpload::make('attachment')->label('Comprovante')->preserveFilenames()->deletable(),
-                Hidden::make('user_id')
+                Hidden::make('user_id'),
             ]);
     }
 
@@ -73,8 +72,7 @@ class LancamentoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->filtersTriggerAction(fn (Tables\Actions\Action $action) =>
-            $action->icon('heroicon-o-adjustments-vertical')
+            ->filtersTriggerAction(fn (Tables\Actions\Action $action) => $action->icon('heroicon-o-adjustments-vertical')
             )
             ->columns([
                 TextColumn::make('recebimento')
@@ -88,7 +86,7 @@ class LancamentoResource extends Resource
                     ->sortable()
                     ->visibleFrom('md'),
                 TextColumn::make('tipoRecebimento')
-                    ->getStateUsing(fn (Lancamento $lancamento): string => self::DINHEIRO === $lancamento->tipoRecebimento
+                    ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->tipoRecebimento === self::DINHEIRO
                         ? 'Dinheiro'
                         : 'Bancário'
                     )
@@ -96,7 +94,7 @@ class LancamentoResource extends Resource
                     ->sortable()
                     ->visibleFrom('md'),
                 TextColumn::make('tipoPagamento')
-                    ->getStateUsing(fn (Lancamento $lancamento): string => self::MERCADORIAS === $lancamento->tipoPagamento
+                    ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->tipoPagamento === self::MERCADORIAS
                         ? 'Mercadorias'
                         : 'Outros'
                     )
@@ -110,7 +108,7 @@ class LancamentoResource extends Resource
                 TextColumn::make('Total')
                     ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->recebimento - $lancamento->pagamento)
                     ->money('BRL', 0, 'pt_BR')
-                    ->sortable()
+                    ->sortable(),
             ])
             ->filters([
                 Filter::make('Dinheiro')
@@ -140,11 +138,11 @@ class LancamentoResource extends Resource
                         ->icon('heroicon-m-arrow-down-tray')
                         ->openUrlInNewTab()
                         ->deselectRecordsAfterCompletion()
-                        ->action(function (Collection $lancamentos) {
+                        ->action(function (Collection $records) {
+                            $lancamentos = $records->where('user_id', auth()->id());
+
                             return response()->streamDownload(function () use ($lancamentos) {
-                                echo Pdf::loadHTML(
-                                    Blade::render('lancamentos-pdf', ['lancamentos' => $lancamentos])
-                                )->stream();
+                                echo Pdf::loadView('lancamentos-pdf', ['lancamentos' => $lancamentos])->output();
                             }, 'lancamentos.pdf');
                         }),
                 ]),
@@ -156,7 +154,7 @@ class LancamentoResource extends Resource
                     ->formats([
                         ExportFormat::Xlsx,
                     ])
-                    ->fileName(fn (): string => 'lancamentos')
+                    ->fileName(fn (): string => 'lancamentos'),
             ]);
     }
 

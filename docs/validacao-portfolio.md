@@ -1,4 +1,6 @@
-# Validação da preparação do portfólio
+# Validação do portfólio
+
+## Etapa 1 — preparação da demonstração
 
 Validação executada em 10/11/2026 na branch `portfolio/evolucao-sysfinan`. A aplicação executou com PHP 8.2.35, Laravel e dependências do lockfile existente. Nenhum deploy ou acesso ao banco de produção foi realizado.
 
@@ -37,3 +39,25 @@ Uma sondagem temporária adicional passou em cinco cenários com 25 asserções:
 - A instalação não executa os scripts Composer que republicam assets. Os arquivos gerados e demais alterações que já estavam no workspace foram preservados.
 
 O ambiente ficou em execução para inspeção local. Para encerrá-lo preservando os dados fictícios, execute `docker compose -f compose.portfolio.yaml stop`.
+
+
+## Etapa 2 — conteúdo e isolamento dos PDFs
+
+As ações passaram a usar `Pdf::loadView(...)->output()`. Foi adicionado o template `lancamentos-pdf` para listar os registros selecionados, com tipos legíveis e data de lançamento. As duas ações filtram a coleção selecionada pelo usuário autenticado antes de renderizar. Valores continuam como strings, sem novos cálculos ou conversões monetárias.
+
+Validação após a correção:
+
+- `./vendor/bin/phpunit --configuration=phpunit.portfolio.xml`: **14 testes, 115 asserções; passou**.
+- `./vendor/bin/pint --test app/Filament/Resources/ContaResource.php app/Filament/Resources/LancamentoResource.php tests/Feature/PdfExportTest.php`: **passou**. A formatação foi aplicada somente aos três arquivos PHP desta etapa.
+- `npm ci` no serviço Node local: instalação concluída com o lockfile existente. A auditoria automática reportou 20 vulnerabilidades (6 moderadas, 13 altas e 1 crítica); nenhuma dependência foi atualizada. A avaliação dessas dependências continua pendente.
+- A primeira tentativa de `npm run build` não encontrou o preset Tailwind do Filament, porque o Node não tinha acesso ao volume de dependências PHP. Com esse volume montado apenas para leitura, **o build passou**:
+
+```bash
+docker compose -f compose.yaml run --rm --no-deps --volume sysfinan-portfolio_vendor:/var/www/html/vendor:ro node npm run build
+```
+
+- `git diff --check`: **passou**.
+
+Os testes adicionais exercitam as ações de download para contas e lançamentos com dois usuários, incluindo seleção adulterada com ID de outro usuário. Verificam que somente o registro selecionado do usuário atual é enviado ao template e que os valores ou fornecedores não selecionados ficam fora do HTML. Há ainda geração real de PDF para o template de lançamentos, com verificação de tipos legíveis e assinatura PDF.
+
+O bloqueio de conteúdo do PDF de lançamentos registrado na etapa 1 está corrigido. A revisão visual dos documentos, a formatação monetária e a validação completa do XLSX seguem pendentes. Esta etapa não altera migrations, códigos de status ou as regras de pagamento. Nenhum arquivo gerado do Filament foi incluído.

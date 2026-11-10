@@ -74,7 +74,7 @@ Os CNPJs são identificadores fictícios, sem validade cadastral. Os e-mails de 
 5. Gere XLSX de contas pagas e não pagas, conferindo status, valores e filtros usados.
 6. Selecione contas e gere PDF. Confira o conteúdo e a formatação.
 7. Guarde a URL de edição de uma conta de A, saia e entre como B. A URL deve negar acesso. Repita com lançamentos e tente as ações disponíveis apenas sobre registros de B.
-8. Confira o relatório de lançamentos. A ação PDF de lançamentos tem um bloqueio de conteúdo descrito abaixo.
+8. Confira o relatório de lançamentos. Confira o PDF de lançamentos: os valores, os tipos e as datas devem corresponder aos registros selecionados.
 
 Use somente o painel como demonstração nesta etapa; `/` ainda exibe a página padrão. Não grave vídeo antes de conferir os resultados do roteiro.
 
@@ -82,14 +82,14 @@ Use somente o painel como demonstração nesta etapa; `/` ainda exibe a página 
 
 ```bash
 docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
-docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test config/portfolio.php database/seeders/PortfolioDemoSeeder.php tests/Feature/PortfolioDemoTest.php
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test config/portfolio.php database/seeders/PortfolioDemoSeeder.php tests/Feature/PortfolioDemoTest.php tests/Feature/PdfExportTest.php app/Filament/Resources/ContaResource.php app/Filament/Resources/LancamentoResource.php
 ```
 
-A configuração de testes força SQLite em memória, ambiente de testes e chave fictícia. As migrations são executadas nessa memória, sem `migrate:fresh`, truncamentos ou acesso ao banco persistente. Os testes cobrem repetição do seeder, bloqueio de produção, login por CNPJ, cadastro com valor exato, pagamento, consultas e edição direta entre dois usuários e filtros dos exportadores de contas. Não comprovam o fluxo completo de download ou a resistência à adulteração de formulários.
+A configuração de testes força SQLite em memória, ambiente de testes e chave fictícia. As migrations são executadas nessa memória, sem `migrate:fresh`, truncamentos ou acesso ao banco persistente. Os testes cobrem repetição do seeder, bloqueio de produção, login por CNPJ, cadastro com valor exato, pagamento, consultas e edição direta entre dois usuários e filtros dos exportadores de contas. Os testes de PDF adicionais verificam o download, os dados enviados ao template e a rejeição de IDs de outro usuário na seleção; há também um teste de geração de PDF real. Não comprovam o fluxo completo de XLSX nem a resistência à adulteração de formulários.
 
 ## Limitações para a próxima etapa
 
-- O PDF de lançamentos referencia `lancamentos-pdf`, que não corresponde a um template existente. A sondagem confirmou que o renderizador trata esse nome como texto literal, produzindo download sem os registros. O template de contas existe e é resolvido pelo renderizador instalado; sua apresentação visual ainda precisa de revisão.
+- O bloqueio de conteúdo do PDF de lançamentos foi corrigido: as ações agora usam `loadView` e recebem somente os registros selecionados do usuário autenticado. A apresentação visual dos PDFs e a formatação monetária ainda precisam de revisão; esta correção preserva as strings monetárias existentes, sem converter para float.
 - O teste de pagamento passou para a transição de pendente para pago; a reversão para pendente e os demais caminhos de edição precisam de cobertura adicional.
 - O filtro por valor usa float e multiplicação por dez; o total de lançamentos faz subtração implícita de strings monetárias.
 - O acesso exige e-mail Gmail. Os formulários não declaram várias validações exigidas pelo banco.
