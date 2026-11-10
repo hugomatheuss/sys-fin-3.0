@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+postgresql/data
+src/.env
+src/node_modules
+src/public/build
+src/storage/logs
+src/vendor

@@ -1,60 +1,41 @@
-FROM php:8.2.11-fpm
+# syntax=docker/dockerfile:1
 
-# Install composer
-RUN echo "\e[1;33mInstall COMPOSER\e[0m"
-RUN cd /tmp \
-    && curl -sS https://getcomposer.org/installer | php \
-    && mv composer.phar /usr/local/bin/composer
+FROM php:8.2-fpm-bookworm
 
-RUN docker-php-ext-install pdo pdo_mysql
+ARG APP_GID=1000
+ARG APP_UID=1000
 
-RUN apt-get update
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        gosu \
+        libicu-dev \
+        libonig-dev \
+        libpq-dev \
+        libzip-dev \
+        unzip \
+    && docker-php-ext-install -j"$(nproc)" \
+        bcmath \
+        intl \
+        mbstring \
+        pdo_pgsql \
+        zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install useful tools
-RUN apt-get -y install apt-utils nano wget dialog vim
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
-# Install important libraries
-RUN echo "\e[1;33mInstall important libraries\e[0m"
-RUN apt-get -y install --fix-missing \
-    apt-utils \
-    build-essential \
-    git \
-    curl \
-    libcurl4 \
-    libcurl4-openssl-dev \
-    zlib1g-dev \
-    libzip-dev \
-    zip \
-    libbz2-dev \
-    locales \
-    libmcrypt-dev \
-    libicu-dev \
-    libonig-dev \
-    libxml2-dev
+RUN groupadd --gid "${APP_GID}" app \
+    && useradd --uid "${APP_UID}" --gid app --create-home --shell /bin/bash app
 
-RUN docker-php-ext-install intl
+WORKDIR /var/www/html
 
-RUN docker-php-ext-install zip
+COPY php/docker-entrypoint.sh /usr/local/bin/sysfinan-entrypoint
 
-RUN docker-php-ext-install bcmath
- #RUN echo "\e[1;33mInstall important docker dependencies\e[0m" \
- #RUN docker-php-ext-install \
- #    exif \
- #    pcntl \
- #    bcmath \
- #    ctype \
- #    curl \
- #    iconv \
- #    xml \
- #    soap \
- #    pcntl \
- #    mbstring \
- #    tokenizer \
- #    bz2 \
- #    zip \
- #    intl
+RUN chmod +x /usr/local/bin/sysfinan-entrypoint
 
-# Install Postgre PDO
-RUN apt-get install -y libpq-dev \
-    && docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
-    && docker-php-ext-install pdo pdo_pgsql pgsql
+ENTRYPOINT ["sysfinan-entrypoint"]
+
+EXPOSE 9000
+
+CMD ["php-fpm"]

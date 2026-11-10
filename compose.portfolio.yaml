@@ -1,0 +1,76 @@
+name: sysfinan-portfolio
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: php/Dockerfile
+    command: >-
+      sh -c "composer install --no-interaction --prefer-dist --no-scripts && php artisan package:discover --ansi && php-fpm"
+    env_file: src/.env.portfolio
+    environment:
+      APP_ENV: portfolio
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8081
+      APP_CONFIG_CACHE: /tmp/sysfinan-portfolio-config.php
+      APP_SERVICES_CACHE: /tmp/sysfinan-portfolio-services.php
+      APP_PACKAGES_CACHE: /tmp/sysfinan-portfolio-packages.php
+      DB_CONNECTION: pgsql
+      DB_HOST: portfolio-postgres
+      DB_PORT: 5432
+      DB_DATABASE: sysfinan_portfolio
+      DB_USERNAME: portfolio
+      DB_PASSWORD: portfolio-local-only
+      PORTFOLIO_DEMO_ENABLED: "true"
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      QUEUE_CONNECTION: sync
+    volumes:
+      - ./src:/var/www/html:ro
+      - ./docker/php/portfolio-fpm.conf:/usr/local/etc/php-fpm.d/zz-portfolio.conf:ro
+      - vendor:/var/www/html/vendor
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    depends_on:
+      portfolio-postgres:
+        condition: service_healthy
+    networks: [portfolio]
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["127.0.0.1:8081:80"]
+    volumes:
+      - ./src:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [app]
+    networks: [portfolio]
+
+  portfolio-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sysfinan_portfolio
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: portfolio-local-only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio -d sysfinan_portfolio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [portfolio]
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    ports: ["127.0.0.1:8026:8025"]
+    networks: [portfolio]
+
+networks:
+  portfolio:
+
+volumes:
+  vendor:
+  storage:
+  bootstrap-cache:
+  postgres-data:
