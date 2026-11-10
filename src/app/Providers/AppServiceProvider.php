@@ -29,9 +29,11 @@ class AppServiceProvider extends ServiceProvider
 
     private function configureCommands(): void
     {
-        DB::prohibitDestructiveCommands(
-          $this->app->isProduction(),
-        );
+        if (method_exists(DB::connection(), 'prohibitDestructiveCommands')) {
+            DB::prohibitDestructiveCommands(
+                $this->app->isProduction(),
+            );
+        }
     }
 
     private function configureModels(): void
@@ -42,6 +44,8 @@ class AppServiceProvider extends ServiceProvider
 
     private function configureUrl(): void
     {
-        URL::forceScheme('https');
+        if ($this->app->isProduction()) {
+            URL::forceScheme('https');
+        }
     }
 }
