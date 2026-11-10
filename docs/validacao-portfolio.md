@@ -87,3 +87,29 @@ docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint -
 - Não houve alteração em Blade, CSS ou JavaScript nesta etapa; o build não foi repetido.
 
 Não há migration nem correção automática de dados históricos. Registros que eventualmente já tenham status `0`, formatos monetários não suportados ou precisão superior a centavos exigem uma avaliação específica. Os campos monetários de cadastro/edição e a apresentação de outras colunas ainda usam os componentes existentes; esta etapa corrige especificamente o filtro, o total e o toggle. Os demais caminhos de edição e a validação completa dos XLSX continuam pendentes.
+
+
+## Etapa 4 — formulários monetários e proteção do proprietário
+
+Os seis testes iniciais de regressão falharam antes das correções, reproduzindo perda de precisão no cadastro/edição, validação monetária insuficiente, alteração de proprietário e mass assignment liberado globalmente. Foram acrescentados testes de validação de tipos/códigos e datas.
+
+Correções e compatibilidade:
+
+- O componente `ValorMonetarioInput`, baseado no `TextInput` do Filament, substitui o campo que convertia valores para float. Ele usa o normalizador por strings, exibe pt-BR e grava decimais com duas casas em strings. Preserva valores altos ao abrir e salvar edições. Não há atualização de esquema ou conversão em lote dos dados existentes.
+- A entrada agora é decimal explícita (`1.234,56` ou `1234.56`), sem deslocamento automático de dígitos para centavos. A orientação aparece no formulário. Valores inválidos, vazios ou acima da capacidade da coluna são recusados no servidor, sem arredondamento.
+- Fornecedor, campos monetários, datas necessárias e códigos string permitidos recebem validação. Conta paga exige data de pagamento; reabrir a conta pelo formulário limpa essa data. Campos opcionais continuam opcionais.
+- A liberação global de mass assignment foi retirada. `user_id` não é mais um campo do formulário nem um atributo preenchível dos modelos financeiros. A criação associa o proprietário pelo relacionamento com o usuário autenticado; a edição ignora qualquer `user_id` enviado pelo cliente.
+
+Validação:
+
+```bash
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test     app/Filament/Resources/ContaResource.php     app/Filament/Resources/LancamentoResource.php     app/Filament/Resources/ContaResource/Pages/CreateConta.php     app/Filament/Resources/ContaResource/Pages/EditConta.php     app/Filament/Resources/LancamentoResource/Pages/CreateLancamento.php     app/Filament/Resources/LancamentoResource/Pages/EditLancamento.php     app/Models/Lancamento.php app/Providers/AppServiceProvider.php     app/Filament/Forms/Components/ValorMonetarioInput.php     tests/Feature/FormularioFinanceiroTest.php
+```
+
+- PHPUnit: **32 testes, 319 asserções; passou**. Os nove testes novos cobrem criação, edição, round-trip de valores altos, centavos, entradas inválidas, array na validação do servidor, códigos/obrigatoriedade, datas e tentativa de transferência entre dois usuários.
+- Pint: **passou nos dez arquivos PHP alterados**.
+- `git diff --check`: **passou**.
+- Sem mudanças em Blade, CSS ou JavaScript; build não foi repetido nesta etapa.
+
+Não foram alterados banco de produção, dados históricos ou dependências. A revisão visual da nova interação decimal e dos documentos, os formatadores das demais colunas de dinheiro e a validação completa dos XLSX continuam pendentes. O ambiente de portfólio permanece isolado da produção.

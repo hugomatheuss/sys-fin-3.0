@@ -16,7 +16,6 @@ class Lancamento extends Model
         'tipoRecebimento',
         'tipoPagamento',
         'dataLancamento',
-        'user_id'
     ];
 
     public function user(): BelongsTo

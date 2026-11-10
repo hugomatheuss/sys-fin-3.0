@@ -10,6 +10,13 @@ class EditLancamento extends EditRecord
 {
     protected static string $resource = LancamentoResource::class;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        unset($data['user_id']);
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

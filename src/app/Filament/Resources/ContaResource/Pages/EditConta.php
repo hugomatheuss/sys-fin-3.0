@@ -10,6 +10,14 @@ class EditConta extends EditRecord
 {
     protected static string $resource = ContaResource::class;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        unset($data['user_id']);
+        $data['dataPagamento'] = $data['status'] === '2' ? null : $data['dataPagamento'];
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

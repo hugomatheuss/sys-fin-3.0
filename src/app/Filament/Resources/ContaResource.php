@@ -4,16 +4,17 @@ namespace App\Filament\Resources;
 
 use App\Filament\Exports\ContasNaoPagasExporter;
 use App\Filament\Exports\ContasPagasExporter;
+use App\Filament\Forms\Components\ValorMonetarioInput;
 use App\Filament\Resources\ContaResource\Pages;
 use App\Models\Conta;
 use App\Support\ValorMonetario;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\ExportAction;
@@ -23,7 +24,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Leandrocfe\FilamentPtbrFormFields\Money;
 
 class ContaResource extends Resource
 {
@@ -47,25 +47,29 @@ class ContaResource extends Resource
     {
         return $form
             ->schema([
-                TextInput::make('fornecedor')->label('Fornecedor'),
-                TextInput::make('numeroDocumento')->label('Número do Documento'),
-                Money::make('valor')->label('Valor'),
-                TextInput::make('descricao')->label('Descrição'),
+                TextInput::make('fornecedor')->label('Fornecedor')->required()->maxLength(255),
+                TextInput::make('numeroDocumento')->label('Número do Documento')->maxLength(255),
+                ValorMonetarioInput::make('valor')->label('Valor'),
+                TextInput::make('descricao')->label('Descrição')->maxLength(255),
                 Radio::make('tipo')
                     ->label('Tipo')
+                    ->required()
+                    ->rules(['string', 'in:1,2'])
                     ->options([
                         '1' => 'Operacional',
                         '2' => 'Não Operacional',
                     ]),
                 Radio::make('status')
                     ->label('Status')
+                    ->required()
+                    ->rules(['string', 'in:1,2'])
+                    ->live()
                     ->options([
                         '1' => 'Pago',
                         '2' => 'Não pago',
                     ]),
-                DatePicker::make('dataPagamento')->label('Data do Pagamento'),
-                DatePicker::make('dataVencimento')->label('Data do Vencimento'),
-                Hidden::make('user_id'),
+                DatePicker::make('dataPagamento')->label('Data do Pagamento')->required(fn (Get $get): bool => $get('status') === self::PAGO),
+                DatePicker::make('dataVencimento')->label('Data do Vencimento')->required(),
             ]);
     }
 

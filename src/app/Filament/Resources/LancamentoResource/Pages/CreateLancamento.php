@@ -3,18 +3,23 @@
 namespace App\Filament\Resources\LancamentoResource\Pages;
 
 use App\Filament\Resources\LancamentoResource;
-use Filament\Actions;
+use App\Models\Lancamento;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class CreateLancamento extends CreateRecord
 {
     protected static string $resource = LancamentoResource::class;
 
-    protected function mutateFormDataBeforeCreate(array $data): array
+    protected function handleRecordCreation(array $data): Model
     {
-        $data['user_id'] = auth()->id();
+        unset($data['user_id']);
 
-        return $data;
+        $record = new Lancamento($data);
+        $record->user()->associate(auth()->user());
+        $record->save();
+
+        return $record;
     }
 
     protected function getRedirectUrl(): string

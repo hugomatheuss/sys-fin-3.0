@@ -3,13 +3,13 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Exports\LancamentoExporter;
+use App\Filament\Forms\Components\ValorMonetarioInput;
 use App\Filament\Resources\LancamentoResource\Pages;
 use App\Models\Lancamento;
 use App\Support\ValorMonetario;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -20,7 +20,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Leandrocfe\FilamentPtbrFormFields\Money;
 
 class LancamentoResource extends Resource
 {
@@ -44,21 +43,20 @@ class LancamentoResource extends Resource
     {
         return $form
             ->schema([
-                Money::make('recebimento')->label('Recebimento'),
-                Money::make('pagamento')->label('Pagamento'),
-                Radio::make('tipoRecebimento')->label('Tipo de Recebimento')
+                ValorMonetarioInput::make('recebimento')->label('Recebimento'),
+                ValorMonetarioInput::make('pagamento')->label('Pagamento'),
+                Radio::make('tipoRecebimento')->label('Tipo de Recebimento')->required()->rules(['string', 'in:0,1'])
                     ->options([
                         '1' => 'Dinheiro',
                         '0' => 'Bancário',
                     ]),
-                Radio::make('tipoPagamento')->label('Tipo de Pagamento')
+                Radio::make('tipoPagamento')->label('Tipo de Pagamento')->required()->rules(['string', 'in:0,1'])
                     ->options([
                         '1' => 'Mercadorias',
                         '0' => 'Outros',
                     ]),
-                DatePicker::make('dataLancamento')->label('Data de Lançamento'),
+                DatePicker::make('dataLancamento')->label('Data de Lançamento')->required(),
                 //FileUpload::make('attachment')->label('Comprovante')->preserveFilenames()->deletable(),
-                Hidden::make('user_id'),
             ]);
     }
 
