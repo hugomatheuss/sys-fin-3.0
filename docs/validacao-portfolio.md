@@ -170,3 +170,29 @@ git diff --check
 - PDFs fictícios gerados em `/tmp`, renderizados com `pdftoppm` e conferidos visualmente: **32 contas em duas páginas e 48 lançamentos em três páginas**. A extração com `pdftotext -layout` confirmou os 32 documentos, repetição dos cabeçalhos em todas as páginas e valores altos/negativos sem perda de centavos. A inspeção encontrou que `colgroup` não aplicava as larguras no DomPDF instalado; as larguras foram transferidas para os cabeçalhos e as prévias foram regeneradas e reinspecionadas. Os arquivos de prévia não foram versionados.
 
 Sem migrations, alterações de configuração de produção, atualização de dependências ou deploy. A revisão visual das telas no navegador, workers externos dos XLSX e revisão das demais ações continuam pendentes. Dados monetários históricos fora do formato decimal suportado ainda exigem avaliação específica. Os assets gerados do Filament e o `.gitignore` preexistentes ficaram fora desta entrega.
+
+## Etapa 7 — autorização, indicadores mensais e feedback do login
+
+Os testes iniciais confirmaram que as exclusões individuais e em lote já respeitavam a consulta filtrada pelo usuário. Foram acrescentadas policies explícitas para proteger também a autorização de registros em outros pontos da aplicação. Os testes dos indicadores reproduziram contagens incorretas quando a data de cadastro pertencia a um mês diferente da data financeira. Um teste adicional reproduziu a mensagem de credenciais inválidas associada ao campo inexistente `data.login`.
+
+Implementações:
+
+- `ContaPolicy` e `LancamentoPolicy`, registradas no `AuthServiceProvider`, autorizam visualização, edição e exclusão apenas ao proprietário. Listagem, criação e exclusão em lote exigem usuário autenticado; os filtros existentes por `user_id` continuam limitando os registros da seleção. Nenhuma regra de acesso por domínio de e-mail foi alterada.
+- O painel usa vencimento para contar contas pendentes do mês, pagamento para contas pagas e data de lançamento para as quatro categorias de movimentação. As contagens gerais continuam abrangendo todo o histórico do usuário. As descrições dos cartões explicam o período e a data utilizada. Não foram introduzidos cálculos monetários nem conversões para float.
+- Falhas de autenticação por CNPJ agora são exibidas no campo `data.cnpj`, tanto para senha incorreta quanto para identificador inexistente, usando a mesma mensagem do Filament.
+
+Verificações executadas a partir da raiz:
+
+```bash
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test app/Policies/ContaPolicy.php app/Policies/LancamentoPolicy.php app/Providers/AuthServiceProvider.php app/Filament/Widgets/StatsOverview.php app/Filament/Auth/Login.php tests/Feature/AutorizacaoFinanceiraTest.php tests/Feature/IndicadoresFinanceirosTest.php tests/Feature/LoginTest.php
+git diff --check
+```
+
+- Suíte principal: **55 testes, 750 asserções; passou**, com SQLite em memória. Inclui os testes existentes de cadastro, edição direta, tentativa de transferência de propriedade, pagamento, PDFs e geração/download de XLSX.
+- Os nove novos testes cobrem autorização pelo Gate com proprietário, outro usuário e visitante; exclusão individual por ID adulterado; seleção mista na exclusão em lote; exclusão pela página de edição; indicadores com datas de cadastro divergentes, primeiro e último dia do mês, datas anteriores/posteriores, ausência de data e isolamento; indicadores sem sessão; feedback de credenciais inválidas; redirecionamento de visitantes nas páginas financeiras.
+- Pint: **passou nos oito arquivos PHP alterados**. A primeira execução apontou imports/espaçamento no login e indentação no widget; foram corrigidos apenas nesses arquivos e a verificação foi repetida com sucesso.
+- `git diff --check`: **passou**.
+- Sem alteração em Blade, CSS ou JavaScript; o build não foi repetido nesta etapa.
+
+As exclusões dos testes ocorreram somente no banco SQLite em memória; nenhum registro persistente foi excluído. Sem migrations, atualização de dependências, alterações de configuração de produção ou deploy. Permanecem pendentes a revisão visual das telas no navegador, o uso de workers externos para XLSX, a avaliação da regra Gmail e a avaliação de suporte das dependências. Os indicadores seguem como contagens. As alterações locais preexistentes em assets gerados do Filament e no `.gitignore` ficaram fora desta entrega.

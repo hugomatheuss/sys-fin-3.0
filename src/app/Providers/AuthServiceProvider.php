@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
-// use Illuminate\Support\Facades\Gate;
+use App\Models\Conta;
+use App\Models\Lancamento;
+use App\Policies\ContaPolicy;
+use App\Policies\LancamentoPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
@@ -13,7 +16,8 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        //
+        Conta::class => ContaPolicy::class,
+        Lancamento::class => LancamentoPolicy::class,
     ];
 
     /**
