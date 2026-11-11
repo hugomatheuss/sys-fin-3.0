@@ -41,9 +41,9 @@ class IndicadoresFinanceirosTest extends TestCase
             $contas[5]->fill(['status' => '1', 'dataPagamento' => '2026-10-31'])->save();
             Conta::where('user_id', '!=', $user->id)->update(['status' => '2', 'dataVencimento' => '2026-11-15']);
             $stats = $this->stats();
-            $this->assertSame(6, $stats['Contas']);
-            $this->assertSame(2, $stats['Contas não pagas']);
-            $this->assertSame(2, $stats['Contas pagas']);
+            $this->assertSame('R$ 1.250,50', $stats['Contas vencidas']);
+            $this->assertSame('R$ 0,00', $stats['Vencem em 7 dias']);
+            $this->assertSame('R$ 1.055,25', $stats['Contas pagas no período']);
         }
     }
 
@@ -59,15 +59,14 @@ class IndicadoresFinanceirosTest extends TestCase
             $records[2]->forceFill(['created_at' => '2026-11-15', 'dataLancamento' => '2026-12-01'])->save();
             Lancamento::where('user_id', '!=', $user->id)->update(['dataLancamento' => '2026-11-15']);
             $stats = $this->stats();
-            $this->assertSame(3, $stats['Lançamentos']);
-            foreach (['Dinheiro', 'Bancário', 'Mercadoria', 'Outros'] as $label) {
-                $this->assertSame(1, $stats[$label]);
-            }
+            $this->assertSame('R$ 3.750,50', $stats['Recebimentos no período']);
+            $this->assertSame('R$ 815,25', $stats['Pagamentos no período']);
+            $this->assertSame('R$ 2.935,25', $stats['Saldo dos lançamentos']);
             $records[0]->update(['dataLancamento' => '2026-10-31']);
             $records[1]->update(['dataLancamento' => null]);
             $stats = $this->stats();
-            foreach (['Dinheiro', 'Bancário', 'Mercadoria', 'Outros'] as $label) {
-                $this->assertSame(0, $stats[$label]);
+            foreach (['Recebimentos no período', 'Pagamentos no período', 'Saldo dos lançamentos'] as $label) {
+                $this->assertSame('R$ 0,00', $stats[$label]);
             }
         }
     }
@@ -77,7 +76,7 @@ class IndicadoresFinanceirosTest extends TestCase
         app('auth')->forgetGuards();
         $this->assertNull(auth()->user());
         foreach ($this->stats() as $value) {
-            $this->assertSame(0, $value);
+            $this->assertSame('R$ 0,00', $value);
         }
     }
 

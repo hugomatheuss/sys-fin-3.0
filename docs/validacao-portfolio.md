@@ -196,3 +196,38 @@ git diff --check
 - Sem alteração em Blade, CSS ou JavaScript; o build não foi repetido nesta etapa.
 
 As exclusões dos testes ocorreram somente no banco SQLite em memória; nenhum registro persistente foi excluído. Sem migrations, atualização de dependências, alterações de configuração de produção ou deploy. Permanecem pendentes a revisão visual das telas no navegador, o uso de workers externos para XLSX, a avaliação da regra Gmail e a avaliação de suporte das dependências. Os indicadores seguem como contagens. As alterações locais preexistentes em assets gerados do Filament e no `.gitignore` ficaram fora desta entrega.
+
+## Etapa 8 — painel financeiro com gráficos e pendências
+
+O painel passou a destacar valores financeiros e prazos, com contagens como informação auxiliar. A página `App\Filament\Pages\Dashboard` substitui o dashboard padrão na mesma rota `/admin` e usa o formulário de filtros nativo do Filament.
+
+Comportamento:
+
+- Seis cartões: valor das contas vencidas, vencimentos dos próximos sete dias, contas pagas no mês, recebimentos, pagamentos e saldo dos lançamentos.
+- O seletor mensal oferece os últimos 36 meses. Pagamentos de contas e fornecedores usam a data de pagamento; recebimentos, pagamentos e evolução usam a data de lançamento. O saldo considera somente os lançamentos, sem somar contas e movimentações entre si.
+- Vencidas são contas com status `2` e vencimento anterior a hoje. Próximos sete dias incluem hoje e os seis dias seguintes. As duas urgências e a lista de atenção não mudam ao selecionar outro mês; isso é explicado no filtro do painel.
+- Evolução em colunas agrupadas de recebimentos e pagamentos nos seis meses até o período selecionado, incluindo meses vazios. Ranking horizontal dos cinco maiores totais de contas pagas por fornecedor.
+- Lista paginada de pendências, com filtros de prazo e link para abrir a conta. A consulta restringe os registros ao usuário autenticado, e a página de destino mantém o filtro de propriedade e as policies existentes.
+- `PainelFinanceiro` centraliza as consultas e agrega os valores com BCMath, percorrendo cursores e preservando strings decimais. A normalização suporta os formatos monetários já aceitos pela aplicação. Não há SQL `SUM` sobre strings nem conversão de valores financeiros para float no PHP. Os datasets dos gráficos enviam strings; os tooltips formatam essas strings diretamente em BRL. A geometria das barras e os marcadores de escala usam a representação numérica do Chart.js, apenas para visualização.
+- Gráficos sem registros exibem uma mensagem clara. O canvas permanece montado quando oculto, preservando os listeners ao alternar períodos. O layout usa uma coluna no celular e dois gráficos lado a lado em telas largas; a lista compacta os campos no celular.
+
+Verificações executadas a partir da raiz:
+
+```bash
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml --filter='DashboardFinanceiroTest|IndicadoresFinanceirosTest'
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test app/Support/PainelFinanceiro.php app/Filament/Pages/Dashboard.php app/Filament/Widgets/StatsOverview.php app/Filament/Widgets/GraficoFinanceiro.php app/Filament/Widgets/MovimentacaoMensal.php app/Filament/Widgets/PagamentosPorFornecedor.php app/Filament/Widgets/ContasAtencao.php app/Providers/Filament/AdminPanelProvider.php tests/Feature/IndicadoresFinanceirosTest.php tests/Feature/DashboardFinanceiroTest.php
+docker compose -f compose.yaml run --rm --no-deps --volume sysfinan-portfolio_vendor:/var/www/html/vendor:ro node npm run build
+git diff --check
+```
+
+- Suíte principal: **63 testes, 814 asserções; passou** com SQLite em memória.
+- Após estabilizar o template dos gráficos: **11 testes do painel, 100 asserções; passou**. Cobrem datas financeiras e limites, valores altos e centavos, saldo negativo, separação entre contas e lançamentos, dois usuários, ausência de sessão, entradas de período adulteradas, formatos monetários legados, payload decimal dos gráficos, virada do ano, meses vazios, agrupamento e ordem exata dos fornecedores, filtros da lista e autorização da página de destino.
+- Pint: **passou nos dez arquivos PHP da entrega**, após corrigir o espaçamento dos tipos union apontado na primeira execução.
+- Build Vite: **passou**, inclusive após a versão final do template Blade. Permanece o aviso de Browserslist desatualizado; nenhuma dependência da aplicação foi instalada ou atualizada.
+- Navegador: Playwright/Chromium instalados somente em `/tmp`, sem alterar manifestos ou lockfiles do projeto. O roteiro `/tmp/sysfinan-dashboard-review.cjs` passou em **1440 px e 390 px**: login local, gráficos com dados, ranking de fornecedores, troca de mês, transição entre dados e estado vazio e retorno ao mês atual. Conferiu que os tooltips preservam `90.071.992.547.409,93` e valores negativos, sem erros JavaScript e sem transbordamento horizontal da página no celular.
+- A revisão no navegador encontrou uma falha ao desmontar o gráfico na transição para o estado vazio. O template foi ajustado para manter o componente e o canvas estáveis; o fluxo completo foi repetido e passou.
+- Capturas em `/tmp/sysfinan-dashboard-desktop.png`, `/tmp/sysfinan-dashboard-mobile.png`, `/tmp/sysfinan-dashboard-fornecedores.png` e `/tmp/sysfinan-dashboard-grafico-mobile.png` foram inspecionadas visualmente e não foram versionadas.
+- `git diff --check`: **passou**.
+
+Sem migrations, alterações de dependências ou configuração de produção, integração automática de contas com lançamentos ou deploy. A inspeção do navegador usou somente o ambiente isolado e os dados fictícios existentes; não criou, editou nem excluiu registros financeiros persistentes. Permanecem pendentes workers externos dos XLSX, inspeção das planilhas em um aplicativo de escritório, revisão visual dos demais fluxos e avaliação de suporte das dependências/regra Gmail. Dados históricos fora dos formatos monetários suportados continuam exigindo avaliação específica. Assets gerados do Filament e `.gitignore` preexistentes ficaram fora da entrega.
