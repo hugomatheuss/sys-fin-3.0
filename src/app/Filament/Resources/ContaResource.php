@@ -77,13 +77,13 @@ class ContaResource extends Resource
     {
         return parent::getEloquentQuery()
             ->select(['contas.*'])
-            ->where('user_id', auth()->id())
-            ->orderBy('dataVencimento', 'desc');
+            ->where('user_id', auth()->id());
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('dataVencimento', 'desc')
             ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
             ->filtersTriggerAction(fn (Tables\Actions\Action $action) => $action->icon('heroicon-o-adjustments-vertical')
             )
@@ -98,7 +98,8 @@ class ContaResource extends Resource
                     ->visibleFrom('md'),
                 TextColumn::make('valor')
                     ->label('Valor')
-                    ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state)),
+                    ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw('CAST(valor AS NUMERIC) '.($direction === 'desc' ? 'desc' : 'asc'))),
                 TextColumn::make('descricao')
                     ->label('Descrição')
                     ->visibleFrom('md'),

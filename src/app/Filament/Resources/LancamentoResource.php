@@ -64,25 +64,25 @@ class LancamentoResource extends Resource
     {
         return parent::getEloquentQuery()
             ->select(['lancamentos.*'])
-            ->where('user_id', auth()->id())
-            ->orderBy('dataLancamento', 'desc');
+            ->where('user_id', auth()->id());
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('dataLancamento', 'desc')
             ->filtersTriggerAction(fn (Tables\Actions\Action $action) => $action->icon('heroicon-o-adjustments-vertical')
             )
             ->columns([
                 TextColumn::make('recebimento')
                     ->label('Recebimento')
                     ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
-                    ->sortable()
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw('CAST(recebimento AS NUMERIC) '.($direction === 'desc' ? 'desc' : 'asc')))
                     ->visibleFrom('md'),
                 TextColumn::make('pagamento')
                     ->label('Pagamento')
                     ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
-                    ->sortable()
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw('CAST(pagamento AS NUMERIC) '.($direction === 'desc' ? 'desc' : 'asc')))
                     ->visibleFrom('md'),
                 TextColumn::make('tipoRecebimento')
                     ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->tipoRecebimento === self::DINHEIRO
@@ -107,7 +107,7 @@ class LancamentoResource extends Resource
                 TextColumn::make('Total')
                     ->getStateUsing(fn (Lancamento $lancamento): string => bcsub($lancamento->recebimento, $lancamento->pagamento, 2))
                     ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
-                    ->sortable(),
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw('(CAST(recebimento AS NUMERIC) - CAST(pagamento AS NUMERIC)) '.($direction === 'desc' ? 'desc' : 'asc'))),
             ])
             ->filters([
                 Filter::make('Dinheiro')

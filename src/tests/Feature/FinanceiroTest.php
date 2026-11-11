@@ -112,4 +112,45 @@ class FinanceiroTest extends TestCase
         $this->assertSame('-0.10', $column->getState());
         $this->assertSame('-R$ 0,10', $column->formatState($column->getState()));
     }
+
+    public function test_ordenacao_de_contas_compara_valores_numericos_e_preserva_isolamento(): void
+    {
+        $contas = Conta::where('user_id', auth()->id())->orderBy('id')->get();
+        foreach (['2', '100.00', '10.01', '0.10', '-2.00', '0'] as $index => $valor) {
+            $contas[$index]->update(['valor' => $valor, 'dataVencimento' => now()->addDays($index)->toDateString()]);
+        }
+
+        $esperadas = collect([4, 5, 3, 0, 2, 1])->map(fn (int $index): Conta => $contas[$index]);
+        $outras = Conta::where('user_id', '!=', auth()->id())->get();
+        $page = Livewire::test(ListContas::class);
+        $page->sortTable('valor', 'asc')->assertCanSeeTableRecords($esperadas, inOrder: true)->assertCanNotSeeTableRecords($outras);
+        $page->sortTable('valor', 'desc')->assertCanSeeTableRecords($esperadas->reverse(), inOrder: true)->assertCanNotSeeTableRecords($outras);
+    }
+
+    public function test_ordenacao_de_lancamentos_compara_valores_e_total_calculado(): void
+    {
+        $lancamentos = Lancamento::where('user_id', auth()->id())->orderBy('id')->get();
+        foreach ([['2.00', '100.00'], ['100.00', '10.01'], ['10.01', '2.00']] as $index => [$recebimento, $pagamento]) {
+            $lancamentos[$index]->update([
+                'recebimento' => $recebimento, 'pagamento' => $pagamento,
+                'dataLancamento' => now()->addDays($index)->toDateString(),
+            ]);
+        }
+
+        $outras = Lancamento::where('user_id', '!=', auth()->id())->get();
+        $page = Livewire::test(ListLancamentos::class);
+        foreach (['recebimento' => [0, 2, 1], 'pagamento' => [2, 1, 0], 'Total' => [0, 2, 1]] as $coluna => $indices) {
+            $esperadas = collect($indices)->map(fn (int $index): Lancamento => $lancamentos[$index]);
+            $page->sortTable($coluna, 'asc')->assertCanSeeTableRecords($esperadas, inOrder: true)->assertCanNotSeeTableRecords($outras);
+            $page->sortTable($coluna, 'desc')->assertCanSeeTableRecords($esperadas->reverse(), inOrder: true)->assertCanNotSeeTableRecords($outras);
+        }
+    }
+
+    public function test_ordenacao_padrao_continua_usando_a_data_financeira_decrescente(): void
+    {
+        $contas = Conta::where('user_id', auth()->id())->orderByDesc('dataVencimento')->get();
+        $lancamentos = Lancamento::where('user_id', auth()->id())->orderByDesc('dataLancamento')->get();
+        Livewire::test(ListContas::class)->assertCanSeeTableRecords($contas, inOrder: true);
+        Livewire::test(ListLancamentos::class)->assertCanSeeTableRecords($lancamentos, inOrder: true);
+    }
 }

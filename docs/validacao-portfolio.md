@@ -140,3 +140,33 @@ git diff --check
 - Não houve mudanças em Blade, CSS ou JavaScript nesta etapa; o build não foi repetido. Alterações locais preexistentes em assets gerados do Filament ficaram fora da entrega.
 
 Sem migrations, atualização de dependências ou deploy. Exportações antigas no disco público não foram movidas nem removidas. A execução com workers externos, a inspeção visual das planilhas e PDFs, a ordenação numérica dos valores armazenados como strings e a revisão das demais ações seguem pendentes.
+
+## Etapa 6 — ordenação numérica e apresentação dos PDFs
+
+Os novos testes reproduziram a ordenação incorreta de contas e lançamentos antes da correção. A consulta base ordenava por data antes da escolha do usuário; recebimento e pagamento eram comparados como texto; a coluna calculada `Total` tentava ordenar por uma coluna inexistente no PostgreSQL.
+
+Correções:
+
+- A ordenação por data financeira foi movida para `defaultSort` do Filament. O padrão continua decrescente, mas a escolha de uma coluna passa a prevalecer.
+- Valor, recebimento e pagamento usam conversão SQL para `NUMERIC`. Total ordena pela diferença entre os dois valores decimais. A direção é limitada a `asc` ou `desc`, e as consultas mantêm o filtro do usuário autenticado. Não houve alteração dos valores armazenados.
+- Os dois PDFs usam estilos compartilhados em `resources/views/pdf/estilos.blade.php`, A4 paisagem, valores alinhados à direita, datas `d/m/Y`, cabeçalhos repetidos e mensagens para seleções vazias. Contas passam a exibir datas financeiras, situação, tipo e documento; lançamentos incluem saldo por linha, calculado com BCMath. Datas ausentes aparecem como travessão. Os textos continuam escapados pelo Blade.
+
+Verificações executadas a partir da raiz:
+
+```bash
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
+docker compose -f compose.portfolio.yaml exec --user app -e SYSFINAN_TEST_POSTGRES=1 app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml tests/Integration/OrdenacaoPostgresTest.php
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test app/Filament/Resources/ContaResource.php app/Filament/Resources/LancamentoResource.php tests/Feature/FinanceiroTest.php tests/Feature/PdfExportTest.php tests/Integration/OrdenacaoPostgresTest.php
+docker compose -f compose.yaml run --rm --no-deps --volume sysfinan-portfolio_vendor:/var/www/html/vendor:ro node npm run build
+git diff --check
+```
+
+- Suíte principal: **46 testes, 516 asserções; passou**. Os novos casos cobrem ordenação nos dois sentidos, precedência sobre datas, saldo negativo, padrão por data financeira, isolamento, valores BRL nos PDFs, datas ausentes, escape de texto e seleção vazia.
+- Após o ajuste final dos cabeçalhos, `./vendor/bin/phpunit --configuration=phpunit.portfolio.xml --filter=PdfExportTest` foi repetido no serviço `app`: **5 testes, 75 asserções; passou**. O build também foi repetido e passou.
+- PostgreSQL: **1 teste adicional, 24 asserções; passou**. Usa somente tabelas temporárias em conexão exclusiva com `search_path=pg_temp`, sem acesso a registros persistentes. Compara a ordenação com `bccomp`, incluindo diferenças de um centavo acima da precisão de float e strings no limite de armazenamento. Essa verificação é explícita, fora da suíte padrão, porque o SQLite converte `NUMERIC` para uma representação de precisão limitada.
+- Pint: **passou nos cinco arquivos PHP**. A execução sem `--test` não precisou alterar a formatação.
+- Build Vite: **passou**, sem instalar ou atualizar dependências. Houve apenas o aviso existente sobre a base Browserslist desatualizada.
+- `git diff --check`: **passou**.
+- PDFs fictícios gerados em `/tmp`, renderizados com `pdftoppm` e conferidos visualmente: **32 contas em duas páginas e 48 lançamentos em três páginas**. A extração com `pdftotext -layout` confirmou os 32 documentos, repetição dos cabeçalhos em todas as páginas e valores altos/negativos sem perda de centavos. A inspeção encontrou que `colgroup` não aplicava as larguras no DomPDF instalado; as larguras foram transferidas para os cabeçalhos e as prévias foram regeneradas e reinspecionadas. Os arquivos de prévia não foram versionados.
+
+Sem migrations, alterações de configuração de produção, atualização de dependências ou deploy. A revisão visual das telas no navegador, workers externos dos XLSX e revisão das demais ações continuam pendentes. Dados monetários históricos fora do formato decimal suportado ainda exigem avaliação específica. Os assets gerados do Filament e o `.gitignore` preexistentes ficaram fora desta entrega.
