@@ -4,11 +4,11 @@ namespace App\Filament\Exports;
 
 use App\Models\Conta;
 use Filament\Actions\Exports\ExportColumn;
-use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
-class ContasNaoPagasExporter extends Exporter
+class ContasNaoPagasExporter extends ExportadorFinanceiro
 {
     protected static ?string $model = Conta::class;
 
@@ -29,29 +29,29 @@ class ContasNaoPagasExporter extends Exporter
                 ->label('Descrição'),
             ExportColumn::make('status')
                 ->label('Status')
-                ->getStateUsing(fn (Conta $conta): string => self::PAGO === $conta->status
+                ->getStateUsing(fn (Conta $conta): string => $conta->status === self::PAGO
                     ? 'Pago'
                     : 'Não pago'
                 ),
             ExportColumn::make('tipo')
                 ->label('Tipo')
-                ->getStateUsing(fn (Conta $conta): string => self::OPERACIONAL === $conta->tipo
+                ->getStateUsing(fn (Conta $conta): string => $conta->tipo === self::OPERACIONAL
                     ? 'Operacional'
                     : 'Não Operacional'
                 ),
             ExportColumn::make('numeroDocumento')->label('Número do Documento'),
             ExportColumn::make('dataVencimento')
                 ->label('Data de Vencimento')
-                ->getStateUsing(fn (Conta $conta): string => \date('d/m/Y', strtotime($conta->dataVencimento))),
+                ->getStateUsing(fn (Conta $conta): string => filled($conta->dataVencimento) ? Carbon::parse($conta->dataVencimento)->format('d/m/Y') : ''),
         ];
     }
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Seu relatório de contas não pagas está finalizado e tem ' . number_format($export->successful_rows) . ' ' . str('linha')->plural($export->successful_rows) . ' exportadas.';
+        $body = 'Seu relatório de contas não pagas está finalizado e tem '.number_format($export->successful_rows).' '.str('linha')->plural($export->successful_rows).' exportadas.';
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' ' . number_format($failedRowsCount) . ' ' . str('linha')->plural($failedRowsCount) . ' falharam ao serem exportadas.';
+            $body .= ' '.number_format($failedRowsCount).' '.str('linha')->plural($failedRowsCount).' falharam ao serem exportadas.';
         }
 
         return $body;
@@ -59,7 +59,7 @@ class ContasNaoPagasExporter extends Exporter
 
     public static function modifyQuery(Builder $query): Builder
     {
-        return $query
+        return parent::modifyQuery($query)
             ->where('status', '=', self::NAO_PAGO)
             ->orderBy('dataVencimento', 'desc');
     }

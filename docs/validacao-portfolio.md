@@ -113,3 +113,30 @@ docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint -
 - Sem mudanças em Blade, CSS ou JavaScript; build não foi repetido nesta etapa.
 
 Não foram alterados banco de produção, dados históricos ou dependências. A revisão visual da nova interação decimal e dos documentos, os formatadores das demais colunas de dinheiro e a validação completa dos XLSX continuam pendentes. O ambiente de portfólio permanece isolado da produção.
+
+## Etapa 5 — exportações XLSX e colunas monetárias
+
+Validação repetida em 11/11/2026 na branch `portfolio/evolucao-sysfinan`, no ambiente Docker de portfólio, usando SQLite em memória.
+
+Correções:
+
+- Os três exportadores herdam de `ExportadorFinanceiro`: novas exportações e arquivos intermediários usam o disco privado `local`. A consulta restringe os registros ao usuário autenticado, preservando os filtros da tabela; cada linha também verifica o proprietário persistido da exportação, sem depender da sessão do worker.
+- As planilhas preservam valores monetários como texto decimal, inclusive valores altos e centavos. Datas ausentes ficam vazias. Os rótulos dos tipos de lançamento e as notificações permanecem em português.
+- As colunas de valor, recebimento e pagamento usam o formatador BRL por strings, sem conversão para float.
+- O middleware de autenticação redireciona para o login existente do painel. Downloads sem sessão deixam de falhar com erro 500; requisições JSON recebem 401.
+
+Verificações executadas a partir da raiz:
+
+```bash
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/phpunit --configuration=phpunit.portfolio.xml
+docker compose -f compose.portfolio.yaml exec --user app app ./vendor/bin/pint --test app/Filament/Exports/ExportadorFinanceiro.php app/Filament/Exports/ContasNaoPagasExporter.php app/Filament/Exports/ContasPagasExporter.php app/Filament/Exports/LancamentoExporter.php app/Filament/Resources/ContaResource.php app/Filament/Resources/LancamentoResource.php app/Http/Middleware/Authenticate.php tests/Feature/FinanceiroTest.php tests/Feature/XlsxExportTest.php
+git diff --check
+```
+
+- PHPUnit: **41 testes, 455 asserções; passou**.
+- Pint: **passou nos nove arquivos PHP da entrega**.
+- `git diff --check`: **passou**.
+- Os testes executam os jobs com fila síncrona, leem os arquivos XLSX gerados e verificam filtros de fornecedor, valor, status e tipo, isolamento entre dois usuários, precisão monetária, datas e armazenamento privado. O download entrega os bytes XLSX ao proprietário, retorna 403 para outro usuário e recusa acesso sem autenticação. Há cobertura da verificação de linhas sem sessão e de consultas sem usuário.
+- Não houve mudanças em Blade, CSS ou JavaScript nesta etapa; o build não foi repetido. Alterações locais preexistentes em assets gerados do Filament ficaram fora da entrega.
+
+Sem migrations, atualização de dependências ou deploy. Exportações antigas no disco público não foram movidas nem removidas. A execução com workers externos, a inspeção visual das planilhas e PDFs, a ordenação numérica dos valores armazenados como strings e a revisão das demais ações seguem pendentes.

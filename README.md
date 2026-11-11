@@ -14,7 +14,7 @@ O cliente precisava de um fluxo específico para cadastrar suas contas, manter u
 - Consulta e filtros por fornecedor, valor, situação, tipo e vencimento.
 - Marcação de pagamento e registro da data correspondente.
 - Lançamentos com recebimentos, pagamentos e tipos de movimentação.
-- Indicadores, exportação XLSX e ações de PDF; limitações conhecidas estão documentadas no roteiro.
+- Indicadores, exportação XLSX com armazenamento privado e ações de PDF; limitações conhecidas estão documentadas no roteiro.
 - Consultas principais filtradas pelo usuário autenticado.
 
 ## Implementação

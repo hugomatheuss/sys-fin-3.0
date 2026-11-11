@@ -76,12 +76,12 @@ class LancamentoResource extends Resource
             ->columns([
                 TextColumn::make('recebimento')
                     ->label('Recebimento')
-                    ->money('BRL', 0, 'pt_BR')
+                    ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
                     ->sortable()
                     ->visibleFrom('md'),
                 TextColumn::make('pagamento')
                     ->label('Pagamento')
-                    ->money('BRL', 0, 'pt_BR')
+                    ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state))
                     ->sortable()
                     ->visibleFrom('md'),
                 TextColumn::make('tipoRecebimento')

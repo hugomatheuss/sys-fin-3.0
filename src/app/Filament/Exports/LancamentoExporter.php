@@ -4,16 +4,16 @@ namespace App\Filament\Exports;
 
 use App\Models\Lancamento;
 use Filament\Actions\Exports\ExportColumn;
-use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
+use Illuminate\Support\Carbon;
 
-class LancamentoExporter extends Exporter
+class LancamentoExporter extends ExportadorFinanceiro
 {
     protected static ?string $model = Lancamento::class;
 
     private const DINHEIRO = '1';
 
-    private const BANCARIO = '2';
+    private const BANCARIO = '0';
 
     private const MERCADORIAS = '1';
 
@@ -28,31 +28,31 @@ class LancamentoExporter extends Exporter
                 ->label('Pagamento'),
             ExportColumn::make('tipoRecebimento')
                 ->label('Tipo de Recebimento')
-                ->getStateUsing(fn (Lancamento $lancamento): string => self::DINHEIRO === $lancamento->tipoRecebimento
+                ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->tipoRecebimento === self::DINHEIRO
                     ? 'Dinheiro'
                     : 'Bancário'
                 ),
             ExportColumn::make('tipoPagamento')
                 ->label('Tipo de Pagamento')
-                ->getStateUsing(fn (Lancamento $lancamento): string => self::MERCADORIAS === $lancamento->tipoPagamento
+                ->getStateUsing(fn (Lancamento $lancamento): string => $lancamento->tipoPagamento === self::MERCADORIAS
                     ? 'Mercadorias'
                     : 'Outros'
                 ),
             ExportColumn::make('dataLancamento')
                 ->label('Data do Lançamento')
-                ->getStateUsing(fn (Lancamento $lancamento): string => \date('d/m/Y', strtotime($lancamento->dataLancamento))),
+                ->getStateUsing(fn (Lancamento $lancamento): string => filled($lancamento->dataLancamento) ? Carbon::parse($lancamento->dataLancamento)->format('d/m/Y') : ''),
             ExportColumn::make('created_at')
                 ->label('Data do Cadastro')
-                ->getStateUsing(fn (Lancamento $lancamento): string => \date('d/m/Y', strtotime($lancamento->created_at))),
+                ->getStateUsing(fn (Lancamento $lancamento): string => filled($lancamento->created_at) ? $lancamento->created_at->format('d/m/Y') : ''),
         ];
     }
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Seu relatório de todos os lançamentos está finalizado e tem ' . number_format($export->successful_rows) . ' ' . str('linha')->plural($export->successful_rows) . ' exportadas.';
+        $body = 'Seu relatório de todos os lançamentos está finalizado e tem '.number_format($export->successful_rows).' '.str('linha')->plural($export->successful_rows).' exportadas.';
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' ' . number_format($failedRowsCount) . ' ' . str('linha')->plural($failedRowsCount) . ' failed to export.';
+            $body .= ' '.number_format($failedRowsCount).' '.str('linha')->plural($failedRowsCount).' falharam ao serem exportadas.';
         }
 
         return $body;

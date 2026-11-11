@@ -98,7 +98,7 @@ class ContaResource extends Resource
                     ->visibleFrom('md'),
                 TextColumn::make('valor')
                     ->label('Valor')
-                    ->money('BRL', 0, 'pt_BR'),
+                    ->formatStateUsing(fn (string $state): string => ValorMonetario::formatar($state)),
                 TextColumn::make('descricao')
                     ->label('Descrição')
                     ->visibleFrom('md'),

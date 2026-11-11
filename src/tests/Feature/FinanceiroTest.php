@@ -83,6 +83,21 @@ class FinanceiroTest extends TestCase
         $this->assertSame($original, $conta->fresh()->dataPagamento);
     }
 
+    public function test_colunas_monetarias_exibem_brl_sem_perder_centavos(): void
+    {
+        $conta = Conta::where('user_id', auth()->id())->firstOrFail();
+        $conta->update(['valor' => '90071992547409.93']);
+        $column = Livewire::test(ListContas::class)->instance()->getTable()->getColumn('valor')->record($conta->fresh());
+        $this->assertSame('R$ 90.071.992.547.409,93', $column->formatState($column->getState()));
+        $record = Lancamento::where('user_id', auth()->id())->firstOrFail();
+        $record->update(['recebimento' => '90071992547409.93', 'pagamento' => '0.10']);
+        $table = Livewire::test(ListLancamentos::class)->instance()->getTable();
+        $receipt = $table->getColumn('recebimento')->record($record->fresh());
+        $payment = $table->getColumn('pagamento')->record($record->fresh());
+        $this->assertSame('R$ 90.071.992.547.409,93', $receipt->formatState($receipt->getState()));
+        $this->assertSame('R$ 0,10', $payment->formatState($payment->getState()));
+    }
+
     public function test_total_preserva_centavos_e_formata_brl_sem_perder_precisao(): void
     {
         $record = Lancamento::where('user_id', auth()->id())->firstOrFail();
